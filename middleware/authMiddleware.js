@@ -1,7 +1,6 @@
 import jwt from "jsonwebtoken";
 
-// 🔐 Protect admin routes
-export const protectAdmin = (req, res, next) => {
+export default function adminAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
 
@@ -10,15 +9,14 @@ export const protectAdmin = (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     req.admin = decoded;
     next();
-  } catch (error) {
+
+  } catch (err) {
+    console.error("JWT ERROR:", err.message);
     return res.status(401).json({ message: "Invalid or expired token" });
   }
-};
-
-// (Optional default export if you ever need it)
-const authMiddleware = protectAdmin;
-export default authMiddleware;
+}
