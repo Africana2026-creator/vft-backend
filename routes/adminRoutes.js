@@ -2,7 +2,7 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import Admin from "../models/Admin.js";
-import  protectAdmin  from "../middleware/authMiddleware.js";
+import protectAdmin from "../middleware/authMiddleware.js";
 import Booking from "../models/Booking.js";
 
 const router = express.Router();
