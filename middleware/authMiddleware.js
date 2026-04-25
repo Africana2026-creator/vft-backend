@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-export default function adminAuth(req, res, next) {
+export default function protectAdmin(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
 
@@ -12,7 +12,7 @@ export default function adminAuth(req, res, next) {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // 🔑 IMPORTANT: normalize admin object
+    // attach admin info
     req.admin = {
       id: decoded.id,
       email: decoded.email
