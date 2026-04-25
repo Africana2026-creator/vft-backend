@@ -12,9 +12,13 @@ export default function adminAuth(req, res, next) {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.admin = decoded;
-    next();
+    // 🔑 IMPORTANT: normalize admin object
+    req.admin = {
+      id: decoded.id,
+      email: decoded.email
+    };
 
+    next();
   } catch (err) {
     console.error("JWT ERROR:", err.message);
     return res.status(401).json({ message: "Invalid or expired token" });
