@@ -23,7 +23,9 @@ const allowedOrigins = [
   "https://victoriafalls-transporters.netlify.app",
   "https://vftamdinusersonly.netlify.app",   // <-- your admin Netlify URL
   "http://127.0.0.1:5500",
-  "http://localhost:5500"
+  "http://localhost:5500",
+  "http://127.0.0.1:5502",   // ✅ ADD THIS
+  "http://localhost:5502"
 ];
 
 app.use(cors({
