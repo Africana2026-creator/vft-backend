@@ -1,56 +1,33 @@
 import express from "express";
 import Enquiry from "../models/Enquiry.js";
-import sendEmail from "../utils/sendEmail.js";
-import protectAdmin from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 /* =========================
-   CREATE ENQUIRY (PUBLIC)
+   CREATE ENQUIRY
 ========================= */
 router.post("/", async (req, res) => {
   try {
-    const enquiry = await Enquiry.create(req.body);
-
-    await sendEmail({
-      to: process.env.ADMIN_EMAIL,
-      subject: "📩 New Accommodation Enquiry",
-      html: `<h2>New Enquiry from ${enquiry.full_name}</h2>`
-    });
-
-    res.status(201).json({ success: true });
-
+    const enquiry = new Enquiry(req.body);
+    await enquiry.save();
+    res.status(201).json(enquiry);
   } catch (error) {
-    res.status(500).json({ success: false });
+    console.error(error);
+    res.status(500).json({ message: "Failed to save enquiry" });
   }
 });
 
 /* =========================
    GET ALL ENQUIRIES (ADMIN)
 ========================= */
-router.get("/", protectAdmin, async (req, res) => {
-  const enquiries = await Enquiry.find().sort({ createdAt: -1 });
-  res.json(enquiries);
-});
-
-/* =========================
-   UPDATE STATUS (ADMIN)
-========================= */
-router.patch("/:id", protectAdmin, async (req, res) => {
-  const updated = await Enquiry.findByIdAndUpdate(
-    req.params.id,
-    { status: req.body.status },
-    { new: true }
-  );
-  res.json(updated);
-});
-
-/* =========================
-   DELETE (ADMIN)
-========================= */
-router.delete("/:id", protectAdmin, async (req, res) => {
-  await Enquiry.findByIdAndDelete(req.params.id);
-  res.json({ success: true });
+router.get("/", async (req, res) => {
+  try {
+    const enquiries = await Enquiry.find().sort({ createdAt: -1 });
+    res.json(enquiries);
+  } catch (error) {
+    console.error("FETCH ERROR:", error);
+    res.status(500).json({ message: "Failed to fetch enquiries" });
+  }
 });
 
 export default router;
