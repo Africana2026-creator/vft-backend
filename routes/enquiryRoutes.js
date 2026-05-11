@@ -1,54 +1,56 @@
 import express from "express";
 import Enquiry from "../models/Enquiry.js";
 import sendEmail from "../utils/sendEmail.js";
+import protectAdmin from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 /* =========================
-   CREATE ENQUIRY + EMAIL ADMIN
+   CREATE ENQUIRY (PUBLIC)
 ========================= */
 router.post("/", async (req, res) => {
   try {
     const enquiry = await Enquiry.create(req.body);
 
-    // 📧 EMAIL ADMIN
     await sendEmail({
       to: process.env.ADMIN_EMAIL,
       subject: "📩 New Accommodation Enquiry",
-      html: `
-        <h2>New Accommodation Enquiry</h2>
-        <p><strong>Name:</strong> ${enquiry.full_name}</p>
-        <p><strong>Email:</strong> ${enquiry.email}</p>
-        <p><strong>Phone:</strong> ${enquiry.phone}</p>
-        <p><strong>Country:</strong> ${enquiry.country}</p>
-        <p><strong>Room Type:</strong> ${enquiry.room_type}</p>
-        <p><strong>Rooms:</strong> ${enquiry.rooms}</p>
-        <p><strong>Check-in:</strong> ${enquiry.check_in}</p>
-        <p><strong>Check-out:</strong> ${enquiry.check_out}</p>
-        <p><strong>Adults:</strong> ${enquiry.adults}</p>
-        <p><strong>Children:</strong> ${enquiry.children}</p>
-        <p><strong>Board:</strong> ${enquiry.board_preference}</p>
-        <p><strong>Airport Transfer:</strong> ${enquiry.airport_transfer}</p>
-        <p><strong>Contact Method:</strong> ${enquiry.contact_method}</p>
-        <p><strong>Arrival Time:</strong> ${enquiry.arrival_time || "N/A"}</p>
-        <p><strong>Special Requests:</strong><br>${enquiry.special_requests || "None"}</p>
-        <hr />
-        <p>Login to admin dashboard to manage this enquiry.</p>
-      `
+      html: `<h2>New Enquiry from ${enquiry.full_name}</h2>`
     });
 
-    res.status(201).json({
-      success: true,
-      message: "Enquiry submitted successfully"
-    });
+    res.status(201).json({ success: true });
 
   } catch (error) {
-    console.error("ENQUIRY ERROR:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to submit enquiry"
-    });
+    res.status(500).json({ success: false });
   }
+});
+
+/* =========================
+   GET ALL ENQUIRIES (ADMIN)
+========================= */
+router.get("/", protectAdmin, async (req, res) => {
+  const enquiries = await Enquiry.find().sort({ createdAt: -1 });
+  res.json(enquiries);
+});
+
+/* =========================
+   UPDATE STATUS (ADMIN)
+========================= */
+router.patch("/:id", protectAdmin, async (req, res) => {
+  const updated = await Enquiry.findByIdAndUpdate(
+    req.params.id,
+    { status: req.body.status },
+    { new: true }
+  );
+  res.json(updated);
+});
+
+/* =========================
+   DELETE (ADMIN)
+========================= */
+router.delete("/:id", protectAdmin, async (req, res) => {
+  await Enquiry.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
 });
 
 export default router;
