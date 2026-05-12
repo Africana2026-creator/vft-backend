@@ -85,18 +85,22 @@ router.post("/setup", async (req, res) => {
     }
 
     // 🚫 Prevent duplicate email or username
-    const existingAdmin = await Admin.findOne({
-      $or: [
-        { email: email.toLowerCase().trim() },
-        { username: username.trim() }
-      ]
-    });
-
-    if (existingAdmin) {
-      return res.status(409).json({
-        message: "Admin with this email or username already exists"
-      });
+    const existingAdmin = await sendEmail({
+  to: booking.email.trim(),
+  subject: "Booking Receipt – Victoria Falls Transporters",
+  html: `
+    <h3>Booking Receipt</h3>
+    <p>Booking Ref: <b>${booking.bookingRef}</b></p>
+    <p>Total: <b>$${booking.totalPrice}</b></p>
+    <p>Please find your receipt attached.</p>
+  `,
+  attachments: [
+    {
+      filename: `receipt-${booking.bookingRef}.pdf`,
+      path: pdfPath
     }
+  ]
+});
 
     // 🔐 Hash password
     const hashedPassword = await bcrypt.hash(password, 12);

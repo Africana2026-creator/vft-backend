@@ -1,40 +1,23 @@
 import nodemailer from "nodemailer";
-import fs from "fs";
-
-const gmailUser = process.env.GMAIL_USER?.trim();
-const gmailPassword = process.env.GMAIL_APP_PASSWORD?.trim();
-const fromName =
-  process.env.EMAIL_FROM_NAME?.trim() || "Victoria Falls Transporters";
-const fromAddress =
-  process.env.EMAIL_FROM_ADDRESS?.trim() || gmailUser || "no-reply@example.com";
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  host: process.env.EMAIL_HOST,
+  port: process.env.EMAIL_PORT,
+  secure: process.env.EMAIL_PORT == 465, // true for 465, false for others
   auth: {
-    user: gmailUser,
-    pass: gmailPassword
-  },
-  tls: {
-    rejectUnauthorized: false
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
 });
 
-export default async function sendEmail({ to, subject, html, attachmentPath }) {
-  if (!gmailUser || !gmailPassword) {
-    throw new Error("Missing Gmail SMTP credentials in environment variables");
-  }
-
-  const mailOptions = {
-    from: `"${fromName}" <${fromAddress}>`,
-    to: typeof to === "string" ? to.trim() : to,
+const sendEmail = async ({ to, subject, html, attachments = [] }) => {
+  return transporter.sendMail({
+    from: `"Victoria Falls Transporters" <${process.env.EMAIL_USER}>`,
+    to,
     subject,
     html,
-    attachments: attachmentPath && fs.existsSync(attachmentPath)
-      ? [{ filename: "receipt.pdf", path: attachmentPath }]
-      : []
-  };
+    attachments
+  });
+};
 
-  await transporter.sendMail(mailOptions);
-}
+export default sendEmail;
