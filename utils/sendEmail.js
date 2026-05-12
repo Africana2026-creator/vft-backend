@@ -1,23 +1,27 @@
 import nodemailer from "nodemailer";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: process.env.EMAIL_PORT == 465, // true for 465, false for others
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+const sendEmail = async ({ to, subject, html, attachmentPath }) => {
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,           // 🔴 REQUIRED
+    port: Number(process.env.EMAIL_PORT),   // 🔴 REQUIRED
+    secure: false,                           // Gmail uses STARTTLS
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD
+    }
+  });
 
-const sendEmail = async ({ to, subject, html, attachments = [] }) => {
-  return transporter.sendMail({
-    from: `"Victoria Falls Transporters" <${process.env.EMAIL_USER}>`,
+  const mailOptions = {
+    from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_FROM_ADDRESS}>`,
     to,
     subject,
     html,
-    attachments
-  });
+    attachments: attachmentPath
+      ? [{ path: attachmentPath }]
+      : []
+  };
+
+  await transporter.sendMail(mailOptions);
 };
 
 export default sendEmail;
