@@ -16,6 +16,11 @@ const enquirySchema = new mongoose.Schema({
   contact_method: String,
   arrival_time: String,
   special_requests: String,
+  status: {
+    type: String,
+    enum: ["new", "contacted", "confirmed", "cancelled"],
+    default: "new"
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -1,25 +1,30 @@
 import nodemailer from "nodemailer";
 import "dotenv/config";
-console.log("DEBUG GMAIL_USER:", process.env.GMAIL_USER);
-console.log("DEBUG GMAIL_PASS EXISTS:", !!process.env.GMAIL_APP_PASSWORD);
+
+const gmailUser = process.env.GMAIL_USER?.trim();
+const gmailPassword = process.env.GMAIL_APP_PASSWORD?.trim();
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
-  secure: true, // ✅ REQUIRED
+  secure: true,
   auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD
+    user: gmailUser,
+    pass: gmailPassword
   },
   tls: {
-    rejectUnauthorized: false // ✅ FIXES self-signed cert error
+    rejectUnauthorized: false
   }
 });
 
 export default async function sendReceiptEmail(to, pdfBuffer, bookingRef) {
+  if (!gmailUser || !gmailPassword) {
+    throw new Error("Missing Gmail SMTP credentials in environment variables");
+  }
+
   await transporter.sendMail({
-    from: `"Victoria Falls Transporters" <${process.env.GMAIL_USER}>`,
-    to,
+    from: `"Victoria Falls Transporters" <${gmailUser}>`,
+    to: typeof to === "string" ? to.trim() : to,
     subject: `Your Booking Receipt (${bookingRef})`,
     text: "Please find your booking receipt attached.",
     attachments: [

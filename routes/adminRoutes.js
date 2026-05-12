@@ -131,13 +131,28 @@ router.get("/exists", async (req, res) => {
    PROTECTED ROUTES
 ========================= */
 router.get("/bookings", protectAdmin, async (req, res) => {
-  const bookings = await Booking.find().sort({ createdAt: -1 });
-  res.json(bookings);
+  try {
+    const bookings = await Booking.find().sort({ createdAt: -1 });
+    res.json(bookings);
+  } catch (err) {
+    console.error("FETCH BOOKINGS ERROR:", err);
+    res.status(500).json({ message: "Failed to fetch bookings" });
+  }
 });
 
 router.delete("/bookings/:id", protectAdmin, async (req, res) => {
-  await Booking.findByIdAndDelete(req.params.id);
-  res.json({ message: "Booking deleted successfully" });
+  try {
+    const booking = await Booking.findByIdAndDelete(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    res.json({ message: "Booking deleted successfully" });
+  } catch (err) {
+    console.error("DELETE BOOKING ERROR:", err);
+    res.status(500).json({ message: "Failed to delete booking" });
+  }
 });
 // =========================
 // EMAIL RECEIPT (ADMIN)
@@ -153,15 +168,20 @@ router.post("/bookings/:id/email-receipt", protectAdmin, async (req, res) => {
       return res.status(404).json({ message: "Booking not found" });
     }
 
+    if (!booking.email) {
+      return res.status(400).json({ message: "Booking does not have a customer email address" });
+    }
+
     const pdfPath = await generateReceipt(booking);
 
     await sendEmail({
-      to: booking.email,
+      to: booking.email.trim(),
       subject: "Booking Receipt – Victoria Falls Transporters",
       html: `
         <h3>Booking Receipt</h3>
         <p>Booking Ref: <b>${booking.bookingRef}</b></p>
         <p>Total: <b>$${booking.totalPrice}</b></p>
+        <p>Please find your receipt attached.</p>
       `,
       attachmentPath: pdfPath
     });
@@ -170,7 +190,7 @@ router.post("/bookings/:id/email-receipt", protectAdmin, async (req, res) => {
 
   } catch (err) {
     console.error("EMAIL RECEIPT ERROR:", err);
-    res.status(500).json({ message: "Failed to email receipt" });
+    res.status(500).json({ message: err.message || "Failed to email receipt" });
   }
 });
 
