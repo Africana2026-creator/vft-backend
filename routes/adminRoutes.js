@@ -1,18 +1,26 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import fs from "fs";
+
 import Admin from "../models/Admin.js";
-import protectAdmin from "../middleware/authMiddleware.js";
 import Booking from "../models/Booking.js";
+
+import protectAdmin from "../middleware/authMiddleware.js";
+import generateReceipt from "../utils/generateReceipt.js";
+import sendReceiptEmail from "../utils/sendReceiptEmail.js";
 
 const router = express.Router();
 
+/* =========================
+   TEST ROUTE
+========================= */
 router.get("/test", (req, res) => {
   res.json({ message: "ADMIN ROUTES WORKING" });
 });
 
 /* =========================
-   ADMIN LOGIN (FIXED)
+   ADMIN LOGIN
 ========================= */
 router.post("/login", async (req, res) => {
   try {
@@ -36,20 +44,12 @@ router.post("/login", async (req, res) => {
     }
 
     const token = jwt.sign(
-      {
-        id: admin._id,
-        email: admin.email
-      },
+      { id: admin._id, email: admin.email },
       process.env.JWT_SECRET,
-      {
-        expiresIn: process.env.JWT_EXPIRES_IN || "1d"
-      }
+      { expiresIn: process.env.JWT_EXPIRES_IN || "1d" }
     );
 
-    res.json({
-      message: "Login successful",
-      token
-    });
+    res.json({ message: "Login successful", token });
 
   } catch (err) {
     console.error("LOGIN ERROR:", err);
@@ -57,72 +57,56 @@ router.post("/login", async (req, res) => {
   }
 });
 
-
 /* =========================
    ONE-TIME ADMIN SETUP
-   (MAX 3 ADMINS TOTAL)
+   (MAX 3 ADMINS)
 ========================= */
 router.post("/setup", async (req, res) => {
   try {
-    console.log("🟢 SETUP ROUTE HIT");
-    console.log("BODY:", req.body);
-
     const { username, email, password } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // 🔢 Count existing admins
     const adminCount = await Admin.countDocuments();
-    console.log("ADMIN COUNT:", adminCount);
-
-    // 🔐 Allow ONLY 3 admins total
     if (adminCount >= 3) {
       return res.status(403).json({
-        message: "Admin limit reached. No more admins can be created."
+        message: "Admin limit reached. No more admins allowed."
       });
     }
 
-    // 🚫 Prevent duplicate email or username
-    const existingAdmin = await sendEmail({
-  to: booking.email.trim(),
-  subject: "Booking Receipt – Victoria Falls Transporters",
-  html: `
-    <h3>Booking Receipt</h3>
-    <p>Booking Ref: <b>${booking.bookingRef}</b></p>
-    <p>Total: <b>$${booking.totalPrice}</b></p>
-    <p>Please find your receipt attached.</p>
-  `,
-  attachments: [
-    {
-      filename: `receipt-${booking.bookingRef}.pdf`,
-      path: pdfPath
-    }
-  ]
-});
+    const existingAdmin = await Admin.findOne({
+      $or: [
+        { email: email.toLowerCase().trim() },
+        { username: username.trim() }
+      ]
+    });
 
-    // 🔐 Hash password
+    if (existingAdmin) {
+      return res.status(409).json({
+        message: "Admin with this email or username already exists"
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // ✅ Create admin
-    const admin = await Admin.create({
+    await Admin.create({
       username: username.trim(),
       email: email.toLowerCase().trim(),
       password: hashedPassword
     });
-
-    console.log("✅ ADMIN CREATED:", admin.username);
 
     res.json({
       message: `Admin created successfully (${adminCount + 1}/3)`
     });
 
   } catch (err) {
-    console.error("❌ SETUP ERROR:", err);
+    console.error("SETUP ERROR:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
+
 /* =========================
    CHECK IF ADMIN EXISTS
 ========================= */
@@ -132,7 +116,7 @@ router.get("/exists", async (req, res) => {
 });
 
 /* =========================
-   PROTECTED ROUTES
+   GET ALL BOOKINGS (ADMIN)
 ========================= */
 router.get("/bookings", protectAdmin, async (req, res) => {
   try {
@@ -144,6 +128,9 @@ router.get("/bookings", protectAdmin, async (req, res) => {
   }
 });
 
+/* =========================
+   DELETE BOOKING
+========================= */
 router.delete("/bookings/:id", protectAdmin, async (req, res) => {
   try {
     const booking = await Booking.findByIdAndDelete(req.params.id);
@@ -158,51 +145,38 @@ router.delete("/bookings/:id", protectAdmin, async (req, res) => {
     res.status(500).json({ message: "Failed to delete booking" });
   }
 });
-// =========================
-// EMAIL RECEIPT (ADMIN)
-// =========================
-import generateReceipt from "../utils/generateReceipt.js";
-import sendEmail from "../utils/sendEmail.js";
 
+/* =========================
+   EMAIL RECEIPT (ADMIN)
+========================= */
 router.post("/bookings/:id/email-receipt", protectAdmin, async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
 
-    if (!booking) {
-      return res.status(404).json({ message: "Booking not found" });
-    }
-
-    if (!booking.email) {
-      return res.status(400).json({ message: "Booking does not have a customer email address" });
+    if (!booking || !booking.email) {
+      return res.status(404).json({ message: "Booking or email not found" });
     }
 
     const pdfPath = await generateReceipt(booking);
+    const pdfBuffer = fs.readFileSync(pdfPath);
 
-    await sendEmail({
-      to: booking.email.trim(),
-      subject: "Booking Receipt – Victoria Falls Transporters",
-      html: `
-        <h3>Booking Receipt</h3>
-        <p>Booking Ref: <b>${booking.bookingRef}</b></p>
-        <p>Total: <b>$${booking.totalPrice}</b></p>
-        <p>Please find your receipt attached.</p>
-      `,
-      attachmentPath: pdfPath
-    });
+    await sendReceiptEmail(
+      booking.email.trim(),
+      pdfBuffer,
+      booking.bookingRef
+    );
 
     res.json({ message: "Receipt emailed successfully" });
 
   } catch (err) {
     console.error("EMAIL RECEIPT ERROR:", err);
-    res.status(500).json({ message: err.message || "Failed to email receipt" });
+    res.status(500).json({ message: "Failed to email receipt" });
   }
 });
 
-// =========================
-// PRINT / DOWNLOAD RECEIPT
-// =========================
-import fs from "fs";
-
+/* =========================
+   PRINT / DOWNLOAD RECEIPT
+========================= */
 router.get("/bookings/:id/receipt", protectAdmin, async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
