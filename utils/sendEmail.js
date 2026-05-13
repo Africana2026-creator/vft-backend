@@ -2,11 +2,9 @@ import nodemailer from "nodemailer";
 
 const sendEmail = async ({ to, subject, html, attachmentPath }) => {
   const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,           // 🔴 REQUIRED
-    port: Number(process.env.EMAIL_PORT),   // 🔴 REQUIRED
-    secure: true,                           // Gmail uses STARTTLS
+    service: "gmail",                 // ✅ USE GMAIL SERVICE
     auth: {
-      user: process.env.GMAIL_USER,
+      user: process.env.GMAIL_USER,   // info.victoriafallstransporters@gmail.com
       pass: process.env.GMAIL_APP_PASSWORD
     }
   });
