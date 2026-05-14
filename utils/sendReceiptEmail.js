@@ -49,12 +49,17 @@ async function resolveSmtpHost() {
 async function createTransporter() {
   const { gmailUser, gmailPass } = getEmailConfig();
   const { smtpHost, smtpAddress } = await resolveSmtpHost();
-  const smtpPort = Number(process.env.SMTP_PORT || 465);
+  const smtpPort = Number(process.env.SMTP_PORT || 587);
+  const isSecure = smtpPort === 465;
 
   return nodemailer.createTransport({
     host: smtpAddress,
     port: smtpPort,
-    secure: smtpPort === 465,
+    secure: isSecure,
+    requireTLS: !isSecure,
+    connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT || 15000),
+    greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || 10000),
+    socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || 20000),
     auth: {
       user: gmailUser,
       pass: gmailPass
