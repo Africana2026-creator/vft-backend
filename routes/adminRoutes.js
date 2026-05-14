@@ -8,6 +8,7 @@ import Booking from "../models/Booking.js";
 
 import protectAdmin from "../middleware/authMiddleware.js";
 import generateReceipt from "../utils/generateReceipt.js";
+import generateReceiptBuffer from "../utils/generateReceiptBuffer.js";
 import sendReceiptEmail from "../utils/sendReceiptEmail.js";
 
 const router = express.Router();
@@ -157,8 +158,7 @@ router.post("/bookings/:id/email-receipt", protectAdmin, async (req, res) => {
       return res.status(404).json({ message: "Booking or email not found" });
     }
 
-    const pdfPath = await generateReceipt(booking);
-    const pdfBuffer = fs.readFileSync(pdfPath);
+    const pdfBuffer = await generateReceiptBuffer(booking);
 
     await sendReceiptEmail(
       booking.email.trim(),
@@ -170,7 +170,7 @@ router.post("/bookings/:id/email-receipt", protectAdmin, async (req, res) => {
 
   } catch (err) {
     console.error("EMAIL RECEIPT ERROR:", err);
-    res.status(500).json({ message: "Failed to email receipt" });
+    res.status(500).json({ message: err.message || "Failed to email receipt" });
   }
 });
 

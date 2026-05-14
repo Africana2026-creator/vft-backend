@@ -1,14 +1,12 @@
+import "dotenv/config";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
-import dotenv from "dotenv";
 import mongoose from "mongoose";
 
 import bookingRoutes from "./routes/bookingRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import enquiryRoutes from "./routes/enquiryRoutes.js";
-
-dotenv.config();
 
 /* =======================
    APP INIT (MUST BE FIRST)

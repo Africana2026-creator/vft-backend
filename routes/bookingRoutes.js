@@ -1,9 +1,8 @@
 import express from "express";
-import fs from "fs";
 import Booking from "../models/Booking.js";
 import { generateBookingRef } from "../utils/generateBookingRef.js";
 import authMiddleware from "../middleware/authMiddleware.js";
-import generateReceipt from "../utils/generateReceipt.js";
+import generateReceiptBuffer from "../utils/generateReceiptBuffer.js";
 import sendReceiptEmail from "../utils/sendReceiptEmail.js";
 
 const router = express.Router();
@@ -63,8 +62,7 @@ router.post("/", async (req, res) => {
     await booking.save();
 
     // 📄 Generate receipt PDF
-    const pdfPath = await generateReceipt(booking);
-    const pdfBuffer = fs.readFileSync(pdfPath);
+    const pdfBuffer = await generateReceiptBuffer(booking);
 
     // 📧 Send receipt email
     await sendReceiptEmail(
