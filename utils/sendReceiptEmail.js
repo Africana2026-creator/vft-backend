@@ -1,7 +1,8 @@
 import "dotenv/config";
+import dns from "node:dns/promises";
 import nodemailer from "nodemailer";
 
-let transporter;
+let transporterPromise;
 
 function getEmailConfig() {
   const gmailUser = process.env.GMAIL_USER?.trim();
@@ -19,19 +20,60 @@ function getEmailConfig() {
   };
 }
 
-function getTransporter() {
-  if (!transporter) {
-    const { gmailUser, gmailPass } = getEmailConfig();
-    transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: gmailUser,
-        pass: gmailPass
+async function resolveSmtpHost() {
+  const smtpHost = process.env.SMTP_HOST?.trim() || "smtp.gmail.com";
+
+  try {
+    const { address } = await dns.lookup(smtpHost, { family: 4 });
+    return {
+      smtpHost,
+      smtpAddress: address
+    };
+  } catch (lookupError) {
+    try {
+      const addresses = await dns.resolve4(smtpHost);
+      if (addresses.length) {
+        return {
+          smtpHost,
+          smtpAddress: addresses[0]
+        };
       }
+    } catch {
+      // Fall through to the final error below.
+    }
+
+    throw new Error(`Could not resolve an IPv4 SMTP address for ${smtpHost}: ${lookupError.message}`);
+  }
+}
+
+async function createTransporter() {
+  const { gmailUser, gmailPass } = getEmailConfig();
+  const { smtpHost, smtpAddress } = await resolveSmtpHost();
+  const smtpPort = Number(process.env.SMTP_PORT || 465);
+
+  return nodemailer.createTransport({
+    host: smtpAddress,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: {
+      user: gmailUser,
+      pass: gmailPass
+    },
+    tls: {
+      servername: smtpHost
+    }
+  });
+}
+
+async function getTransporter() {
+  if (!transporterPromise) {
+    transporterPromise = createTransporter().catch((error) => {
+      transporterPromise = null;
+      throw error;
     });
   }
 
-  return transporter;
+  return transporterPromise;
 }
 
 export default async function sendReceiptEmail(to, pdfBuffer, bookingRef) {
@@ -46,7 +88,9 @@ export default async function sendReceiptEmail(to, pdfBuffer, bookingRef) {
   const { fromName, fromAddress } = getEmailConfig();
 
   try {
-    return await getTransporter().sendMail({
+    const transporter = await getTransporter();
+
+    return await transporter.sendMail({
       from: `"${fromName}" <${fromAddress}>`,
       to: to.trim(),
       subject: `Your Booking Receipt (${bookingRef})`,
