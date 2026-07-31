@@ -61,19 +61,24 @@ router.post("/", async (req, res) => {
 
     await booking.save();
 
-    // 📄 Generate receipt PDF
-    const pdfBuffer = await generateReceiptBuffer(booking);
+    let emailMessage = "Booking confirmed";
 
-    // 📧 Send receipt email
-    await sendReceiptEmail(
-      booking.email.trim(),
-      pdfBuffer,
-      booking.bookingRef
-    );
+    try {
+      const pdfBuffer = await generateReceiptBuffer(booking);
+      await sendReceiptEmail(
+        booking.email.trim(),
+        pdfBuffer,
+        booking.bookingRef
+      );
+      emailMessage = "Booking confirmed & receipt emailed";
+    } catch (emailError) {
+      console.warn("⚠️ Receipt email failed:", emailError);
+      emailMessage = "Booking confirmed, but receipt email could not be delivered.";
+    }
 
     res.status(201).json({
       success: true,
-      message: "Booking confirmed & receipt emailed",
+      message: emailMessage,
       bookingRef
     });
 

@@ -23,6 +23,8 @@ const bookingSchema = new mongoose.Schema(
     services: [
       {
         name: String,
+        unitPrice: Number,
+        passengers: Number,
         price: Number,
       },
     ],
