@@ -31,8 +31,9 @@ const allowedOrigins = [
 app.use(cors({
   origin: function (origin, callback) {
     const isLocalOrigin = origin && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    const isNullOrigin = origin === "null";
 
-    if (!origin || isLocalOrigin || allowedOrigins.includes(origin)) {
+    if (!origin || isNullOrigin || isLocalOrigin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));

@@ -3,7 +3,7 @@ import Booking from "../models/Booking.js";
 import { generateBookingRef } from "../utils/generateBookingRef.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import generateReceiptBuffer from "../utils/generateReceiptBuffer.js";
-import sendReceiptEmail from "../utils/sendReceiptEmail.js";
+import sendReceiptEmail, { isEmailConfigured } from "../utils/sendReceiptEmail.js";
 
 const router = express.Router();
 
@@ -63,17 +63,22 @@ router.post("/", async (req, res) => {
 
     let emailMessage = "Booking confirmed";
 
-    try {
-      const pdfBuffer = await generateReceiptBuffer(booking);
-      await sendReceiptEmail(
-        booking.email.trim(),
-        pdfBuffer,
-        booking.bookingRef
-      );
-      emailMessage = "Booking confirmed & receipt emailed";
-    } catch (emailError) {
-      console.warn("⚠️ Receipt email failed:", emailError);
-      emailMessage = "Booking confirmed, but receipt email could not be delivered.";
+    if (isEmailConfigured()) {
+      try {
+        const pdfBuffer = await generateReceiptBuffer(booking);
+        await sendReceiptEmail(
+          booking.email.trim(),
+          pdfBuffer,
+          booking.bookingRef
+        );
+        emailMessage = "Booking confirmed & receipt emailed";
+      } catch (emailError) {
+        console.warn("⚠️ Receipt email failed:", emailError.message || emailError);
+        emailMessage = "Booking confirmed, but receipt email could not be delivered.";
+      }
+    } else {
+      console.warn("⚠️ Receipt email is not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD to enable email receipts.");
+      emailMessage = "Booking confirmed. Email receipts are not configured.";
     }
 
     res.status(201).json({

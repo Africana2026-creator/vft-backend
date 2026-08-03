@@ -81,6 +81,13 @@ async function getTransporter() {
   return transporterPromise;
 }
 
+export function isEmailConfigured() {
+  return Boolean(
+    process.env.GMAIL_USER?.trim() &&
+    process.env.GMAIL_APP_PASSWORD?.trim()
+  );
+}
+
 export default async function sendReceiptEmail(to, pdfBuffer, bookingRef) {
   if (!to?.trim()) {
     throw new Error("Customer email address is missing.");

@@ -9,7 +9,7 @@ import Booking from "../models/Booking.js";
 import protectAdmin from "../middleware/authMiddleware.js";
 import generateReceipt from "../utils/generateReceipt.js";
 import generateReceiptBuffer from "../utils/generateReceiptBuffer.js";
-import sendReceiptEmail from "../utils/sendReceiptEmail.js";
+import sendReceiptEmail, { isEmailConfigured } from "../utils/sendReceiptEmail.js";
 
 const router = express.Router();
 
@@ -156,6 +156,12 @@ router.post("/bookings/:id/email-receipt", protectAdmin, async (req, res) => {
 
     if (!booking || !booking.email) {
       return res.status(404).json({ message: "Booking or email not found" });
+    }
+
+    if (!isEmailConfigured()) {
+      return res.status(500).json({
+        message: "Email service is not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD to send receipts."
+      });
     }
 
     const pdfBuffer = await generateReceiptBuffer(booking);
